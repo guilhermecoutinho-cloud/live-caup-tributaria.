@@ -118,11 +118,10 @@ input[aria-invalid="true"]{border-color:#FF8A7A}
 <section class="col-form" id="inscricao">
 <!--
   FORMULÁRIO DE INSCRIÇÃO
-  Para integrar ao CRM: substitua este <form> pelo formulário/embed do CRM
-  ou aponte o atributo action para o endpoint do CRM (method="post").
-  Campos: nome, email, telefone. Após o envio, redirecione para obrigado.html.
+  Integração CRM (Unnica): o envio é feito por /api/inscricao (arquivo api/inscricao.js),
+  que repassa nome, email e telefone ao webhook. O token fica na variável UNNICA_TOKEN da Vercel.
 -->
-<form class="card" id="form-inscricao" action="obrigado.html" method="get" novalidate>
+<form class="card" id="form-inscricao" action="/api/inscricao" method="post" novalidate>
 <div class="card-head"><h2>Garanta sua vaga</h2><span class="pill">Gratuito</span></div>
 <label>Nome completo<input name="nome" type="text" autocomplete="name" placeholder="Seu nome" required></label>
 <label>E-mail<input name="email" type="email" autocomplete="email" inputmode="email" placeholder="voce@empresa.com.br" required></label>
@@ -147,8 +146,14 @@ else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.value.trim())){ok=false;f.ema
 else if(f.telefone.value.replace(/\D/g,'').length<10){ok=false;f.telefone.setAttribute('aria-invalid','true');msg='Informe o WhatsApp com DDD.'}
 err.textContent=msg;
 if(!ok){e.preventDefault();return}
-/* Integração CRM: envie os dados aqui (fetch) ou deixe o action do form apontar para o CRM. */
-e.preventDefault();window.location.href='obrigado.html';
+e.preventDefault();
+var btn=f.querySelector('button[type="submit"]');btn.disabled=true;btn.style.opacity='.7';btn.firstChild.textContent='Enviando…';
+var dados={nome:f.nome.value.trim(),email:f.email.value.trim(),telefone:f.telefone.value};
+var ctrl=('AbortController' in window)?new AbortController():null;var tm=setTimeout(function(){if(ctrl)ctrl.abort()},10000);
+fetch('/api/inscricao',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(dados),signal:ctrl?ctrl.signal:undefined})
+.then(function(r){return r.json().catch(function(){return {ok:r.ok}})})
+.then(function(j){clearTimeout(tm);if(j&&j.ok){window.location.href='obrigado.html'}else{throw new Error('falha')}})
+.catch(function(){clearTimeout(tm);btn.disabled=false;btn.style.opacity='';btn.firstChild.textContent='Quero me inscrever';err.textContent='Não conseguimos concluir sua inscrição agora. Tente novamente em instantes.'});
 });
 })();
 </script>
